@@ -9,7 +9,7 @@ def keygen(n):
 
 key = keygen(32).decode()
 print(f"Key: {key}")
-if input("Save? (Y/N): ").upper() == "Y":
+if input("Save? (y/n): ").lower() == "y":
     save_as = input("Save As: ")
     with open(save_as, "w") as file:
         file.write(key)
