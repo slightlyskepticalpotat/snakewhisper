@@ -1,4 +1,5 @@
 import logging
+import os
 import socket
 import sys
 import threading
@@ -10,7 +11,7 @@ from cryptography.fernet import Fernet, InvalidToken
 aliases = {}
 connected = ""
 
-COMMANDS = ["/alias", "/help", "/ip", "/quit", "/time"]
+COMMANDS = ["/alias", "/clear", "/help", "/ip", "/quit", "/time"]
 LOCAL_PORT = 2048
 REMOTE_PORT = 2048
 LOCAL_ALT_PORT = 4096
@@ -57,6 +58,14 @@ class Client(threading.Thread):
         aliases[args[1]] = args[2]
         logging.info(f"Aliased {args[1]} to {args[2]}")
 
+    def clear(self, args):
+        "Clear the console on all platforms."
+        if os.name == "posix":
+            os.system("clear")
+        else:
+            os.system("cls")
+        logging.info("Console cleared")
+
     def help(self, args):
         """Displays all of the available commands."""
         logging.info(" ".join(COMMANDS))
@@ -101,7 +110,8 @@ class Client(threading.Thread):
         self.outgoing = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         while not connected:
             target_host = input("HOST: ")
-            self.connect(target_host)
+            if target_host:
+                self.connect(target_host)
         logging.info(f"Connected to {connected}")
 
         # Either send message or run command
