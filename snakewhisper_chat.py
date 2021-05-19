@@ -11,45 +11,54 @@ from cryptography.fernet import Fernet, InvalidToken
 aliases = {}
 connected = ""
 
-COMMANDS = ["/alias", "/clear", "/help", "/ip", "/quit", "/time"]
-LOCAL_PORT = 2048
-REMOTE_PORT = 2048
+COMMANDS = ["/alias", "/clear", "/help", "/ip", "/quit", "/remote", "/time"]
 LOCAL_ALT_PORT = 4096
+LOCAL_PORT = 2048
 REMOTE_ALT_PORT = 4096
+REMOTE_PORT = 2048
 
 
 class Server(threading.Thread):
     def run(self):
         """Handles all of the incoming messages."""
         global connected
-        # listen for ipv4 connections on all hosts
-        self.incoming = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        try:
-            self.incoming.bind(("", LOCAL_PORT))
-            logging.info(f"Listening on port {LOCAL_PORT}")
-        except Exception as e:
-            logging.error(str(e))
-            logging.info("Trying alternate local")
-            self.incoming.bind(("", LOCAL_ALT_PORT))
-            logging.info(f"Listening on port {LOCAL_ALT_PORT}")
-        self.incoming.listen(1)
-
-        # connect to peer automatically
-        peer, address = self.incoming.accept()
-        logging.info(f"New connection {address[0]}")
-        if not connected:
-            client.connect(address[0])
-
-        # listen for messages forever
         while True:
+            # listen for ipv4 connections on all hosts
+            self.incoming = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
             try:
-                message = f"{aliases.get(address[0], address[0])}: {fernet.decrypt(peer.recv(1024)).decode()}"
-                print(message)
-                logging.debug(message)
+                self.incoming.bind(("", LOCAL_PORT))
+                logging.info(f"Listening on port {LOCAL_PORT}")
             except Exception as e:
                 logging.error(str(e))
-                logging.info(
-                    f"Error from {aliases.get(address[0], address[0])}")
+                logging.info("Trying alternate local")
+                self.incoming.bind(("", LOCAL_ALT_PORT))
+                logging.info(f"Listening on port {LOCAL_ALT_PORT}")
+
+            # connect to peer automatically
+            self.incoming.listen(1)
+            peer, address = self.incoming.accept()
+            logging.info(f"New connection {address[0]}")
+            if not connected:
+                client.connect(address[0])
+                logging.info(f"Press enter to continue")
+
+            # listen for messages forever
+            while True:
+                try:
+                    message = f"{aliases.get(address[0], address[0])}: {fernet.decrypt(peer.recv(1024)).decode()}"
+                    print(message)
+                    logging.debug(message)
+                except Exception as e:
+                    if not str(e):
+                        # almost restart the thread
+                        logging.info(
+                            f"{aliases.get(address[0], address[0])} disconnected")
+                        self.incoming.close()
+                        connected = ""
+                        break
+                    logging.error(str(e))
+                    logging.info(
+                        f"Error from {aliases.get(address[0], address[0])}")
 
 
 class Client(threading.Thread):
@@ -81,6 +90,13 @@ class Client(threading.Thread):
         logging.info("Quit successfully")
         raise SystemExit
 
+    def remote(self, args):
+        """Displays the currently connected IP address."""
+        if connected:
+            logging.info(f"Connected to {connected}")
+        else:
+            logging.info("Currently not connected")
+
     def time(self, args):
         """Displays the current local time."""
         logging.info(time.ctime())
@@ -107,27 +123,36 @@ class Client(threading.Thread):
         global connected
         # Connect to a specified peer
         logging.info(f"/help to list commands")
-        self.outgoing = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        while not connected:
-            target_host = input("HOST: ")
-            if target_host:
-                self.connect(target_host)
-        logging.info(f"Connected to {connected}")
-
-        # Either send message or run command
         while True:
-            message = input("")
-            if message:
-                logging.debug(message)
-                check_command = message.split()
-                if check_command[0] in COMMANDS:
-                    # hack to call function with name
-                    try:
-                        getattr(self, check_command[0][1:])(check_command)
-                    except Exception as e:
-                        logging.error(str(e))
-                else:
-                    self.outgoing.sendall(fernet.encrypt(message.encode()))
+            try:
+                self.outgoing = socket.socket(
+                    socket.AF_INET, socket.SOCK_STREAM)
+                while not connected:
+                    target_host = input("HOST: ")
+                    if target_host:
+                        self.connect(target_host)
+                logging.info(f"Connected to {connected}")
+
+                # Either send message or run command
+                while True:
+                    message = input("")
+                    if message:
+                        logging.debug(message)
+                        check_command = message.split()
+                        if check_command[0] in COMMANDS:
+                            # hack to call function with name
+                            try:
+                                getattr(
+                                    self, check_command[0][1:])(
+                                    check_command)
+                            except Exception as e:
+                                logging.error(str(e))
+                        else:
+                            self.outgoing.sendall(
+                                fernet.encrypt(message.encode()))
+            except Exception as e:
+                logging.error(str(e))
+                connected = ""
 
 
 if __name__ == "__main__":
