@@ -40,9 +40,11 @@ INFO: New connection 1.1.1.1
 # now you type messages or commands
 alice to bob # your message
 1.1.1.1: bob to alice # their message
-/help # command
+/help # list all commands
 INFO: /alias /clear /help /ip /quit /remote /time
-/quit # command
+/help quit # describe quit command
+INFO: Quits the program
+/quit # quits the program
 INFO: Quit successfully
 ```
 
@@ -50,10 +52,9 @@ INFO: Quit successfully
 For easy implementation, snakewhisper uses the [Fernet](https://cryptography.io/en/latest/fernet/) encryption scheme from the [cryptography](https://github.com/pyca/cryptography) Python package. Fernet is just AES-128 encryption with a SHA-256 hash-based message authentication code, and the full specification can be viewed [here](https://github.com/fernet/spec/blob/master/Spec.md). It also adds a timestamp to the message, but snakewhisper does not use that functionality.
 
 ## To-do List
-- Help functionality with docstrings
 - Proper key exchange algorithm
-- More than two people chatting
 - Register and upload pip package
+- More than two people chatting
 
 ## Contributing
 Pull requests are welcome, but please open an issue to discuss major changes.

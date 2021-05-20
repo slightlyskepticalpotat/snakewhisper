@@ -63,12 +63,12 @@ class Server(threading.Thread):
 
 class Client(threading.Thread):
     def alias(self, args):
-        """Alias args[1] (an IP) to args[2] (any string)."""
+        """Aliases an IP to a name"""
         aliases[args[1]] = args[2]
         logging.info(f"Aliased {args[1]} to {args[2]}")
 
     def clear(self, args):
-        "Clear the console on all platforms."
+        """Clears the console"""
         if os.name == "posix":
             os.system("clear")
         else:
@@ -76,29 +76,32 @@ class Client(threading.Thread):
         logging.info("Console cleared")
 
     def help(self, args):
-        """Displays all of the available commands."""
-        logging.info(" ".join(COMMANDS))
+        """Shows all commands or info"""
+        if len(args) > 1 and "/" + args[1] in COMMANDS:
+            logging.info(getattr(self, args[1]).__doc__)
+        else:
+            logging.info(" ".join(COMMANDS))
 
     def ip(self, args):
-        """Return the IP address of the computer."""
+        """Shows local IP address"""
         logging.info(request.urlopen(
             "http://ipv4.icanhazip.com").read().decode("utf8").strip())
 
     def quit(self, args):
-        """Quits the program and properly closes sockets."""
+        """Quits the program"""
         client.outgoing.close()
         logging.info("Quit successfully")
         raise SystemExit
 
     def remote(self, args):
-        """Displays the currently connected IP address."""
+        """Shows connected IP address"""
         if connected:
             logging.info(f"Connected to {connected}")
         else:
             logging.info("Currently not connected")
 
     def time(self, args):
-        """Displays the current local time."""
+        """Shows current local time"""
         logging.info(time.ctime())
 
     def connect(self, target_host):
