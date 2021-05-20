@@ -15,14 +15,42 @@ A pip package for snakewhisper is in development.
 ```bash
 git clone https://github.com/slightlyskepticalpotat/snakewhisper.git
 cd snakewhisper
+pip3 -r requirements.txt
 ```
 
 ## Usage
+The below commands show the basic features of snakewhisper.  
+```bash
+$ python3 snakewhisper_key.py
+Key: VJM5wFYxuM1oi5VD3WBRMv4NpTnnVQA8wVNV1x4KSig=
+Save? (y/n): y # type here
+Save As: snakewhisper.key # type here
+Saved As: snakewhisper.key
+```
+
+```bash
+$ python3 snakewhisper_chat.py
+Log? (y/n): y # type here
+KEY: VJM5wFYxuM1oi5VD3WBRMv4NpTnnVQA8wVNV1x4KSig= # type here
+INFO: Listening on port 2048
+INFO: /help to list commands
+HOST: 1.1.1.1 # type here
+INFO: Connected to 1.1.1.1
+INFO: New connection 1.1.1.1
+# now you type messages or commands
+alice to bob # your message
+1.1.1.1: bob to alice # their message
+/help # command
+INFO: /alias /clear /help /ip /quit /remote /time
+/quit # command
+INFO: Quit successfully
+```
 
 ## Cryptography
 For easy implementation, snakewhisper uses the [Fernet](https://cryptography.io/en/latest/fernet/) encryption scheme from the [cryptography](https://github.com/pyca/cryptography) Python package. Fernet is just AES-128 encryption with a SHA-256 hash-based message authentication code, and the full specification can be viewed [here](https://github.com/fernet/spec/blob/master/Spec.md). It also adds a timestamp to the message, but snakewhisper does not use that functionality.
 
 ## To-do List
+- Help functionality with docstrings
 - Proper key exchange algorithm
 - More than two people chatting
 - Register and upload pip package
