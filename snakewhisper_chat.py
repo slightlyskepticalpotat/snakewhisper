@@ -71,6 +71,7 @@ class Server(threading.Thread):
             logging.info(f"New connection {self.address[0]}")
             if not connected:
                 self.accept_connection()
+                client.initate_connection(self.address[0], True)
                 logging.info(f"Press enter to continue")
 
             # listen for messages forever
