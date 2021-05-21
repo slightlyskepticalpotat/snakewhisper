@@ -36,7 +36,7 @@ class Server(threading.Thread):
         global connected, fernet
         try:
             # exchange the ec public key
-            peer_public_key = load_pem_public_key(self.peer.recv(1024))
+            peer_public_key = load_pem_public_key(self.peer.recv(1024)).strip()
             self.peer.sendall(private_key.public_key().public_bytes(
                 Encoding.PEM, PublicFormat.SubjectPublicKeyInfo))
             shared_key = private_key.exchange(ec.ECDH(), peer_public_key)
@@ -166,7 +166,7 @@ class Client(threading.Thread):
         try:
             self.outgoing.sendall(private_key.public_key().public_bytes(
                 Encoding.PEM, PublicFormat.SubjectPublicKeyInfo))
-            peer_public_key = load_pem_public_key(self.outgoing.recv(1024))
+            peer_public_key = load_pem_public_key(self.outgoing.recv(1024)).strip()
             shared_key = private_key.exchange(ec.ECDH(), peer_public_key)
             derived_key = HKDFExpand(algorithm=hashes.SHA256(),
                                      length=32, info=None).derive(shared_key)
