@@ -36,7 +36,7 @@ class Server(threading.Thread):
             self.peer.sendall(private_key.public_key().public_bytes(
                 Encoding.PEM, PublicFormat.SubjectPublicKeyInfo))
             shared_key = private_key.exchange(ec.ECDH(), peer_public_key)
-            print(len(shared_key))
+            connected = self.address[0]
         except Exception as e:
             logging.error(str(e))
 
@@ -63,28 +63,28 @@ class Server(threading.Thread):
 
             # connect to peer automatically
             self.incoming.listen(1)
-            self.peer, address = self.incoming.accept()
-            logging.info(f"New connection {address[0]}")
+            self.peer, self.address = self.incoming.accept()
+            logging.info(f"New connection {self.address[0]}")
             self.accept_connection()
             logging.info(f"Press enter to continue")
 
             # listen for messages forever
             while True:
                 try:
-                    message = f"{aliases.get(address[0], address[0])}: {fernet.decrypt(self.peer.recv(1024)).decode()}"
+                    message = f"{aliases.get(self.address[0], self.address[0])}: {fernet.decrypt(self.peer.recv(1024)).decode()}"
                     print(message)
                     logging.debug(message)
                 except Exception as e:
                     if not str(e):
                         # almost restart the thread
                         logging.info(
-                            f"{aliases.get(address[0], address[0])} disconnected")
+                            f"{aliases.get(self.address[0], self.address[0])} disconnected")
                         self.incoming.close()
                         connected = ""
                         break
                     logging.error(str(e))
                     logging.info(
-                        f"Error from {aliases.get(address[0], address[0])}")
+                        f"Error from {aliases.get(self.address[0], self.address[0])}")
 
 
 class Client(threading.Thread):
