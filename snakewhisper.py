@@ -9,7 +9,7 @@ from urllib import request
 
 from cryptography.fernet import Fernet, InvalidToken
 from cryptography.hazmat.primitives import hashes
-from cryptography.hazmat.primitives.asymmetric import ec
+from cryptography.hazmat.primitives.asymmetric import x25519
 from cryptography.hazmat.primitives.kdf.hkdf import HKDFExpand
 from cryptography.hazmat.primitives.serialization import (Encoding,
                                                           NoEncryption,
@@ -39,7 +39,7 @@ class Server(threading.Thread):
             peer_public_key = load_pem_public_key(self.peer.recv(1024))
             self.peer.sendall(private_key.public_key().public_bytes(
                 Encoding.PEM, PublicFormat.SubjectPublicKeyInfo))
-            shared_key = private_key.exchange(ec.ECDH(), peer_public_key)
+            shared_key = private_key.exchange(peer_public_key)
             derived_key = HKDFExpand(algorithm=hashes.SHA256(),
                                      length=32, info=None).derive(shared_key)
             fernet = Fernet(base64.urlsafe_b64encode(derived_key))
@@ -52,7 +52,7 @@ class Server(threading.Thread):
         while True:
             # generate a private key
             logging.info("Generating private key")
-            private_key = ec.generate_private_key(ec.SECP384R1())
+            private_key = x25519.X25519PrivateKey.generate()
 
             # listen for ipv4 connections on all hosts
             self.incoming = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -123,7 +123,7 @@ class Client(threading.Thread):
         """Shows the local private key"""
         logging.info("Do not disclose this key")
         logging.info(private_key.private_bytes(
-            Encoding.PEM, PrivateFormat.PKCS8, NoEncryption()).decode())
+            Encoding.PEM, PrivateFormat.Raw, NoEncryption()).decode())
 
     def quit(self, args):
         """Quits the program"""
@@ -167,7 +167,7 @@ class Client(threading.Thread):
             self.outgoing.sendall(private_key.public_key().public_bytes(
                 Encoding.PEM, PublicFormat.SubjectPublicKeyInfo))
             peer_public_key = load_pem_public_key(self.outgoing.recv(1024))
-            shared_key = private_key.exchange(ec.ECDH(), peer_public_key)
+            shared_key = private_key.exchange(peer_public_key)
             derived_key = HKDFExpand(algorithm=hashes.SHA256(),
                                      length=32, info=None).derive(shared_key)
             fernet = Fernet(base64.urlsafe_b64encode(derived_key))
