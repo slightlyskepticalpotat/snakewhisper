@@ -31,15 +31,19 @@ REMOTE_PORT = 2048
 class Server(threading.Thread):
     def accept_connection(self):
         """Accepts a connection and does key exchange."""
+        global connected
         try:
             peer_public_key = load_pem_public_key(self.peer.recv(4096))
             self.peer.sendall(private_key.public_key().public_bytes(
                 Encoding.PEM, PublicFormat.SubjectPublicKeyInfo))
             shared_key = private_key.exchange(ec.ECDH(), peer_public_key)
-            connected = self.address[0]
+            derived_key = HKDF(algorithm=hashes.SHA256(), length=32)
+            print(derived_key)
         except Exception as e:
             logging.error(str(e))
-
+            return
+        connected = self.address[0]
+        
     def run(self):
         """Handles all of the incoming messages."""
         global connected, private_key
@@ -47,8 +51,6 @@ class Server(threading.Thread):
             # generate a private key
             logging.info("Generating private key")
             private_key = ec.generate_private_key(ec.SECP521R1())
-            print(private_key.public_key().public_bytes(
-                Encoding.PEM, PublicFormat.SubjectPublicKeyInfo))
 
             # listen for ipv4 connections on all hosts
             self.incoming = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -151,7 +153,8 @@ class Client(threading.Thread):
                 Encoding.PEM, PublicFormat.SubjectPublicKeyInfo))
             peer_public_key = load_pem_public_key(self.outgoing.recv(4096))
             shared_key = private_key.exchange(ec.ECDH(), peer_public_key)
-            print(len(shared_key))
+            derived_key = HKDF(algorithm=hashes.SHA256(), length=32)
+            print(derived_key)
         except Exception as e:
             logging.error(str(e))
             return
