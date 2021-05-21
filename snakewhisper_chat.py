@@ -12,15 +12,18 @@ from cryptography.hazmat.primitives import hashes
 from cryptography.hazmat.primitives.asymmetric import ec
 from cryptography.hazmat.primitives.kdf.hkdf import HKDFExpand
 from cryptography.hazmat.primitives.serialization import (Encoding,
+                                                          NoEncryption,
+                                                          PrivateFormat,
                                                           PublicFormat,
                                                           load_pem_public_key)
 
 aliases = {}
-connected = ""
-fernet = ""
-private_key = ""
+connected = None
+fernet = None
+private_key = None
 
-COMMANDS = ["/alias", "/clear", "/help", "/ip", "/quit", "/remote", "/time"]
+COMMANDS = ["/alias", "/clear", "/help", "/ip",
+            "/privkey", "/quit", "/remote", "/time"]
 LOCAL_ALT_PORT = 4096
 LOCAL_PORT = 2048
 REMOTE_ALT_PORT = 4096
@@ -29,23 +32,24 @@ REMOTE_PORT = 2048
 
 class Server(threading.Thread):
     def accept_connection(self):
-        """Accepts a connection and does key exchange."""
+        """Accepts connection and derives a shared key."""
         global connected, fernet
         try:
-            peer_public_key = load_pem_public_key(self.peer.recv(4096))
+            peer_public_key = load_pem_public_key(self.peer.recv(1024))
             self.peer.sendall(private_key.public_key().public_bytes(
                 Encoding.PEM, PublicFormat.SubjectPublicKeyInfo))
             shared_key = private_key.exchange(ec.ECDH(), peer_public_key)
-            derived_key = HKDFExpand(algorithm=hashes.SHA256(), length=32, info=None).derive(shared_key)
+            derived_key = HKDFExpand(algorithm=hashes.SHA256(),
+                                     length=32, info=None).derive(shared_key)
             fernet = Fernet(base64.urlsafe_b64encode(derived_key))
         except Exception as e:
             logging.error(str(e))
-            return
-        connected = self.address[0]
+        else:
+            connected = self.address[0]
 
     def run(self):
         """Handles all of the incoming messages."""
-        global connected, private_key
+        global connected, fernet, private_key
         while True:
             # generate a private key
             logging.info("Generating private key")
@@ -77,11 +81,11 @@ class Server(threading.Thread):
                     logging.debug(message)
                 except Exception as e:
                     if not str(e):
-                        # almost restart the thread
+                        # empty string means peer disconnected
                         logging.info(
                             f"{aliases.get(self.address[0], self.address[0])} disconnected")
                         self.incoming.close()
-                        connected = ""
+                        connected = None
                         break
                     logging.error(str(e))
                     logging.info(
@@ -113,6 +117,12 @@ class Client(threading.Thread):
         """Shows local IP address"""
         logging.info(request.urlopen(
             "http://ipv4.icanhazip.com").read().decode("utf8").strip())
+
+    def privkey(self, args):
+        """Shows the local private key"""
+        logging.info("Do not disclose this key")
+        logging.info(private_key.private_bytes(
+            Encoding.PEM, PrivateFormat.PKCS8, NoEncryption()).decode())
 
     def quit(self, args):
         """Quits the program"""
@@ -150,18 +160,19 @@ class Client(threading.Thread):
         try:
             self.outgoing.sendall(private_key.public_key().public_bytes(
                 Encoding.PEM, PublicFormat.SubjectPublicKeyInfo))
-            peer_public_key = load_pem_public_key(self.outgoing.recv(4096))
+            peer_public_key = load_pem_public_key(self.outgoing.recv(1024))
             shared_key = private_key.exchange(ec.ECDH(), peer_public_key)
-            derived_key = HKDFExpand(algorithm=hashes.SHA256(), length=32, info=None).derive(shared_key)
+            derived_key = HKDFExpand(algorithm=hashes.SHA256(),
+                                     length=32, info=None).derive(shared_key)
             fernet = Fernet(base64.urlsafe_b64encode(derived_key))
         except Exception as e:
             logging.error(str(e))
-            return
-        connected = target_host
+        else:
+            connected = target_host
 
     def run(self):
         """Handles all of the outgoing messages."""
-        global connected
+        global connected, fernet
         # Connect to a specified peer
         logging.info(f"/help to list commands")
         while True:
@@ -194,7 +205,7 @@ class Client(threading.Thread):
                                 fernet.encrypt(message.encode()))
             except Exception as e:
                 logging.error(str(e))
-                connected = ""
+                connected = None
 
 
 if __name__ == "__main__":
@@ -207,16 +218,6 @@ if __name__ == "__main__":
             "%(asctime)s - %(levelname)s: %(message)s"))
     logging.basicConfig(level=logging.DEBUG,
                         format="%(levelname)s: %(message)s", handlers=handlers)
-
-    # get and validate the key
-    #while True:
-    #    try:
-    #        key = input("KEY: ")
-    #        fernet = Fernet(key)
-    #    except Exception as e:
-    #        logging.error(str(e))
-    #    else:
-    #        break
 
     # start the combined server and client
     server = Server()
