@@ -69,8 +69,8 @@ class Server(threading.Thread):
             self.incoming.listen(1)
             self.peer, self.address = self.incoming.accept()
             logging.info(f"New connection {self.address[0]}")
-            self.accept_connection()
             if not connected:
+                self.accept_connection()
                 client.initate_connection(self.address[0], True)
             logging.info(f"Press enter to continue")
 
