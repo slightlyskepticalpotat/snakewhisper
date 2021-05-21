@@ -32,10 +32,10 @@ class Server(threading.Thread):
     def accept_connection(self):
         """Accepts a connection and does key exchange."""
         try:
-            self.incoming.sendall(private_key.public_key().public_bytes(
-                Encoding.PEM, PublicFormat.SubjectPublicKeyInfo))
             peer_public_key = self.incoming.recv(4096)
             peer_public_key = load_pem_public_key(self.incoming.recv(4096))
+            self.incoming.sendall(private_key.public_key().public_bytes(
+                Encoding.PEM, PublicFormat.SubjectPublicKeyInfo))
             shared_key = private_key.exchange(ec.ECDH(), peer_public_key)
             print(len(shared_key))
         except Exception as e:
