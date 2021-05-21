@@ -36,7 +36,7 @@ class Server(threading.Thread):
             self.peer.sendall(private_key.public_key().public_bytes(
                 Encoding.PEM, PublicFormat.SubjectPublicKeyInfo))
             shared_key = private_key.exchange(ec.ECDH(), peer_public_key)
-            derived_key = HKDFExpand(algorithm=hashes.SHA256(), length=32, info=None)
+            derived_key = HKDFExpand(algorithm=hashes.SHA256(), length=32, info=None).derive(shared_key)
             fernet = Fernet(base64.urlsafe_b64encode(derived_key))
         except Exception as e:
             logging.error(str(e))
@@ -152,7 +152,7 @@ class Client(threading.Thread):
                 Encoding.PEM, PublicFormat.SubjectPublicKeyInfo))
             peer_public_key = load_pem_public_key(self.outgoing.recv(4096))
             shared_key = private_key.exchange(ec.ECDH(), peer_public_key)
-            derived_key = HKDFExpand(algorithm=hashes.SHA256(), length=32, info=None)
+            derived_key = HKDFExpand(algorithm=hashes.SHA256(), length=32, info=None).derive(shared_key)
             fernet = Fernet(base64.urlsafe_b64encode(derived_key))
         except Exception as e:
             logging.error(str(e))
