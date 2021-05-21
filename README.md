@@ -9,27 +9,54 @@ snakewhisper is a simple [end-to-end encrypted](https://en.wikipedia.org/wiki/En
 ## Installation
 
 ### Pip
-A pip package for snakewhisper is in development.
+```bash
+$ pip3 install snakewhisper
+```
 
 ### Git
 ```bash
-git clone https://github.com/slightlyskepticalpotat/snakewhisper.git
-cd snakewhisper
-pip3 -r requirements.txt
+$ git clone https://github.com/slightlyskepticalpotat/snakewhisper.git
+$ cd snakewhisper
+$ pip3 -r requirements.txt
 ```
 
 ## Usage
 The below commands show the basic features of snakewhisper.  
+
+### Generate Key
+
+### Pip
+```bash
+$ python3 -m snakewhisper_key
+```
+
+### Git
 ```bash
 $ python3 snakewhisper_key.py
+```
+
+### Output
+```
 Key: VJM5wFYxuM1oi5VD3WBRMv4NpTnnVQA8wVNV1x4KSig=
 Save? (y/n): y # type here
 Save As: snakewhisper.key # type here
 Saved As: snakewhisper.key
 ```
 
+### Connect/Chat
+
+### Pip
+```bash
+$ python3 -m snakewhisper_chat
+```
+
+### Git
 ```bash
 $ python3 snakewhisper_chat.py
+```
+
+### Output
+```
 Log? (y/n): y # type here
 KEY: VJM5wFYxuM1oi5VD3WBRMv4NpTnnVQA8wVNV1x4KSig= # type here
 INFO: Listening on port 2048
@@ -60,4 +87,4 @@ For easy implementation, snakewhisper uses the [Fernet](https://cryptography.io/
 Pull requests are welcome, but please open an issue to discuss major changes.
 
 ## License
-snakewhisper is licenced under version 3.0 of the [GNU Affero General Public License](LICENSE).
+snakewhisper is licenced under version 3.0 of the [GNU Affero General Public License](https://github.com/slightlyskepticalpotat/snakewhisper/blob/main/LICENSE).
