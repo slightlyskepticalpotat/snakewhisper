@@ -45,8 +45,6 @@ class Server(threading.Thread):
             fernet = Fernet(base64.urlsafe_b64encode(derived_key))
         except Exception as e:
             logging.error(str(e))
-        else:
-            connected = self.address[0]
 
     def run(self):
         """Handles all of the incoming messages."""
@@ -72,7 +70,8 @@ class Server(threading.Thread):
             self.peer, self.address = self.incoming.accept()
             logging.info(f"New connection {self.address[0]}")
             self.accept_connection()
-            client.initate_connection(self.address[0], True)
+            if not connected:
+                client.initate_connection(self.address[0], True)
             logging.info(f"Press enter to continue")
 
             # listen for messages forever
@@ -143,7 +142,7 @@ class Client(threading.Thread):
         """Shows current local time"""
         logging.info(time.ctime())
 
-    def initate_connection(self, target_host, skip_exchange=False):
+    def initate_connection(self, target_host, no_exchange=False):
         """Tries the primary and alternate ports."""
         global connected, fernet
         # establish an initial connection
@@ -157,9 +156,11 @@ class Client(threading.Thread):
             except Exception as e:
                 logging.error(str(e))
                 return
+            else:
+                connected = target_host
 
         # setup connection from server thread
-        if skip_exchange:
+        if no_exchange:
             return
 
         # exchange the ec public key
@@ -173,8 +174,7 @@ class Client(threading.Thread):
             fernet = Fernet(base64.urlsafe_b64encode(derived_key))
         except Exception as e:
             logging.error(str(e))
-        else:
-            connected = target_host
+            connected = None
 
     def run(self):
         """Handles all of the outgoing messages."""
