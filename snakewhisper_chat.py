@@ -7,9 +7,20 @@ import time
 from urllib import request
 
 from cryptography.fernet import Fernet, InvalidToken
+from cryptography.hazmat.primitives import hashes
+from cryptography.hazmat.primitives.asymmetric import ec
+from cryptography.hazmat.primitives.kdf.hkdf import HKDF
+from cryptography.hazmat.backends.interfaces import EllipticCurveBackend
+from cryptography.hazmat.primitives.serialization import (Encoding,
+                                                          PublicFormat,
+                                                          load_pem_public_key)
 
 aliases = {}
 connected = ""
+fernet = ""
+private_key = ""
+peer_public_key = ""
+shared_key = ""
 
 COMMANDS = ["/alias", "/clear", "/help", "/ip", "/quit", "/remote", "/time"]
 LOCAL_ALT_PORT = 4096
@@ -19,10 +30,28 @@ REMOTE_PORT = 2048
 
 
 class Server(threading.Thread):
+    def accept_connection(self):
+        """Accepts a connection and does key exchange."""
+        try:
+            self.incoming.sendall(private_key.public_key().public_bytes(
+                Encoding.PEM, PublicFormat.SubjectPublicKeyInfo))
+            peer_public_key = self.incoming.recv(4096)
+            peer_public_key = load_pem_public_key(self.incoming.recv(4096))
+            shared_key = private_key.exchange(ec.ECDH(), peer_public_key)
+            print(len(shared_key))
+        except Exception as e:
+            logging.error(str(e))
+
     def run(self):
         """Handles all of the incoming messages."""
-        global connected
+        global connected, private_key
         while True:
+            # generate a private key
+            logging.info("Generating private key")
+            private_key = ec.generate_private_key(ec.SECP521R1())
+            print(private_key.public_key().public_bytes(
+                Encoding.PEM, PublicFormat.SubjectPublicKeyInfo))
+
             # listen for ipv4 connections on all hosts
             self.incoming = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
             try:
@@ -38,9 +67,8 @@ class Server(threading.Thread):
             self.incoming.listen(1)
             peer, address = self.incoming.accept()
             logging.info(f"New connection {address[0]}")
-            if not connected:
-                client.connect(address[0])
-                logging.info(f"Press enter to continue")
+            self.accept_connection(address[0])
+            logging.info(f"Press enter to continue")
 
             # listen for messages forever
             while True:
@@ -104,9 +132,10 @@ class Client(threading.Thread):
         """Shows current local time"""
         logging.info(time.ctime())
 
-    def connect(self, target_host):
+    def initate_connection(self, target_host):
         """Tries the primary and alternate ports."""
-        global connected
+        global connected, peer_public_key
+        # establish initial connection
         try:
             self.outgoing.connect((target_host, REMOTE_PORT))
         except Exception as e:
@@ -116,10 +145,20 @@ class Client(threading.Thread):
                 self.outgoing.connect((target_host, REMOTE_ALT_PORT))
             except Exception as e:
                 logging.error(str(e))
-            else:
-                connected = target_host
-        else:
-            connected = target_host
+                return
+
+        # exchange the ec public key
+        try:
+            self.outgoing.sendall(private_key.public_key().public_bytes(
+                Encoding.PEM, PublicFormat.SubjectPublicKeyInfo))
+            peer_public_key = self.outgoing.recv(4096)
+            peer_public_key = load_pem_public_key(self.outgoing.recv(4096))
+            shared_key = private_key.exchange(ec.ECDH(), peer_public_key)
+            print(len(shared_key))
+        except Exception as e:
+            logging.error(str(e))
+            return
+        connected = target_host
 
     def run(self):
         """Handles all of the outgoing messages."""
@@ -127,15 +166,16 @@ class Client(threading.Thread):
         # Connect to a specified peer
         logging.info(f"/help to list commands")
         while True:
-            try:
-                self.outgoing = socket.socket(
-                    socket.AF_INET, socket.SOCK_STREAM)
-                while not connected:
-                    target_host = input("HOST: ")
-                    if target_host:
-                        self.connect(target_host)
-                logging.info(f"Connected to {connected}")
+            self.outgoing = socket.socket(
+                socket.AF_INET, socket.SOCK_STREAM)
+            while not connected:
+                target_host = input("HOST: ")
+                if target_host:
+                    logging.info(f"Connecting to {target_host}")
+                    self.initate_connection(target_host)
+            logging.info(f"Connected to {connected}")
 
+            try:
                 # Either send message or run command
                 while True:
                     message = input("")
