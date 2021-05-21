@@ -1,3 +1,4 @@
+import base64
 import logging
 import os
 import socket
@@ -18,8 +19,6 @@ aliases = {}
 connected = ""
 fernet = ""
 private_key = ""
-peer_public_key = ""
-shared_key = ""
 
 COMMANDS = ["/alias", "/clear", "/help", "/ip", "/quit", "/remote", "/time"]
 LOCAL_ALT_PORT = 4096
@@ -31,14 +30,14 @@ REMOTE_PORT = 2048
 class Server(threading.Thread):
     def accept_connection(self):
         """Accepts a connection and does key exchange."""
-        global connected
+        global connected, fernet
         try:
             peer_public_key = load_pem_public_key(self.peer.recv(4096))
             self.peer.sendall(private_key.public_key().public_bytes(
                 Encoding.PEM, PublicFormat.SubjectPublicKeyInfo))
             shared_key = private_key.exchange(ec.ECDH(), peer_public_key)
             derived_key = HKDFExpand(algorithm=hashes.SHA256(), length=32, info=None)
-            print(derived_key)
+            fernet = Fernet(base64.urlsafe_b64encode(derived_key))
         except Exception as e:
             logging.error(str(e))
             return
@@ -134,7 +133,7 @@ class Client(threading.Thread):
 
     def initate_connection(self, target_host):
         """Tries the primary and alternate ports."""
-        global connected, peer_public_key
+        global connected, fernet
         # establish initial connection
         try:
             self.outgoing.connect((target_host, REMOTE_PORT))
@@ -154,7 +153,7 @@ class Client(threading.Thread):
             peer_public_key = load_pem_public_key(self.outgoing.recv(4096))
             shared_key = private_key.exchange(ec.ECDH(), peer_public_key)
             derived_key = HKDFExpand(algorithm=hashes.SHA256(), length=32, info=None)
-            print(derived_key)
+            fernet = Fernet(base64.urlsafe_b64encode(derived_key))
         except Exception as e:
             logging.error(str(e))
             return
@@ -210,14 +209,14 @@ if __name__ == "__main__":
                         format="%(levelname)s: %(message)s", handlers=handlers)
 
     # get and validate the key
-    while True:
-        try:
-            key = input("KEY: ")
-            fernet = Fernet(key)
-        except Exception as e:
-            logging.error(str(e))
-        else:
-            break
+    #while True:
+    #    try:
+    #        key = input("KEY: ")
+    #        fernet = Fernet(key)
+    #    except Exception as e:
+    #        logging.error(str(e))
+    #    else:
+    #        break
 
     # start the combined server and client
     server = Server()
