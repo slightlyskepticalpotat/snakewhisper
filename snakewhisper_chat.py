@@ -32,9 +32,8 @@ class Server(threading.Thread):
     def accept_connection(self):
         """Accepts a connection and does key exchange."""
         try:
-            peer_public_key = self.incoming.recv(4096)
             peer_public_key = load_pem_public_key(self.incoming.recv(4096))
-            self.incoming.sendall(private_key.public_key().public_bytes(
+            self.peer.sendall(private_key.public_key().public_bytes(
                 Encoding.PEM, PublicFormat.SubjectPublicKeyInfo))
             shared_key = private_key.exchange(ec.ECDH(), peer_public_key)
             print(len(shared_key))
@@ -64,7 +63,7 @@ class Server(threading.Thread):
 
             # connect to peer automatically
             self.incoming.listen(1)
-            peer, address = self.incoming.accept()
+            self.peer, address = self.incoming.accept()
             logging.info(f"New connection {address[0]}")
             self.accept_connection()
             logging.info(f"Press enter to continue")
@@ -72,7 +71,7 @@ class Server(threading.Thread):
             # listen for messages forever
             while True:
                 try:
-                    message = f"{aliases.get(address[0], address[0])}: {fernet.decrypt(peer.recv(1024)).decode()}"
+                    message = f"{aliases.get(address[0], address[0])}: {fernet.decrypt(self.peer.recv(1024)).decode()}"
                     print(message)
                     logging.debug(message)
                 except Exception as e:
@@ -150,7 +149,6 @@ class Client(threading.Thread):
         try:
             self.outgoing.sendall(private_key.public_key().public_bytes(
                 Encoding.PEM, PublicFormat.SubjectPublicKeyInfo))
-            peer_public_key = self.outgoing.recv(4096)
             peer_public_key = load_pem_public_key(self.outgoing.recv(4096))
             shared_key = private_key.exchange(ec.ECDH(), peer_public_key)
             print(len(shared_key))
