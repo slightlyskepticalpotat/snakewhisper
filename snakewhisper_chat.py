@@ -10,7 +10,6 @@ from cryptography.fernet import Fernet, InvalidToken
 from cryptography.hazmat.primitives import hashes
 from cryptography.hazmat.primitives.asymmetric import ec
 from cryptography.hazmat.primitives.kdf.hkdf import HKDF
-from cryptography.hazmat.backends.interfaces import EllipticCurveBackend
 from cryptography.hazmat.primitives.serialization import (Encoding,
                                                           PublicFormat,
                                                           load_pem_public_key)
@@ -67,7 +66,7 @@ class Server(threading.Thread):
             self.incoming.listen(1)
             peer, address = self.incoming.accept()
             logging.info(f"New connection {address[0]}")
-            self.accept_connection(address[0])
+            self.accept_connection()
             logging.info(f"Press enter to continue")
 
             # listen for messages forever
