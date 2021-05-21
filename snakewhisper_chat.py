@@ -37,13 +37,13 @@ class Server(threading.Thread):
             self.peer.sendall(private_key.public_key().public_bytes(
                 Encoding.PEM, PublicFormat.SubjectPublicKeyInfo))
             shared_key = private_key.exchange(ec.ECDH(), peer_public_key)
-            derived_key = HKDF(algorithm=hashes.SHA256(), length=32)
+            derived_key = HKDF(algorithm=hashes.SHA256(), length=32, salt=None, info=None)
             print(derived_key)
         except Exception as e:
             logging.error(str(e))
             return
         connected = self.address[0]
-        
+
     def run(self):
         """Handles all of the incoming messages."""
         global connected, private_key
@@ -153,7 +153,7 @@ class Client(threading.Thread):
                 Encoding.PEM, PublicFormat.SubjectPublicKeyInfo))
             peer_public_key = load_pem_public_key(self.outgoing.recv(4096))
             shared_key = private_key.exchange(ec.ECDH(), peer_public_key)
-            derived_key = HKDF(algorithm=hashes.SHA256(), length=32)
+            derived_key = HKDF(algorithm=hashes.SHA256(), length=32, salt=None, info=None)
             print(derived_key)
         except Exception as e:
             logging.error(str(e))
