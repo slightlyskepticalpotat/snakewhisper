@@ -17,7 +17,7 @@ $ pip3 install snakewhisper
 ```bash
 $ git clone https://github.com/slightlyskepticalpotat/snakewhisper.git
 $ cd snakewhisper
-$ pip3 -r requirements.txt
+$ pip3 install -r requirements.txt
 ```
 
 ## Usage
@@ -78,10 +78,12 @@ INFO: Quit successfully
 ## Cryptography
 For easy implementation, snakewhisper uses the [Fernet](https://cryptography.io/en/latest/fernet/) encryption scheme from the [cryptography](https://github.com/pyca/cryptography) Python package. Fernet is just AES-128 encryption with a SHA-256 hash-based message authentication code, and the full specification can be viewed [here](https://github.com/fernet/spec/blob/master/Spec.md). It also adds a timestamp to the message, but snakewhisper does not use that functionality.
 
+- ECDHE with SECP521R1
+- key derivation with HKDF-sha256
+- regular fernet
+
 ## To-do List
-- Proper key exchange algorithm
-- Register and upload pip package
-- More than two people chatting
+- Secure multi-user conversations
 
 ## Contributing
 Pull requests are welcome, but please open an issue to discuss major changes.

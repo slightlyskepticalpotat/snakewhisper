@@ -1,3 +1,4 @@
+import base64
 import logging
 import os
 import socket
@@ -7,11 +8,22 @@ import time
 from urllib import request
 
 from cryptography.fernet import Fernet, InvalidToken
+from cryptography.hazmat.primitives import hashes
+from cryptography.hazmat.primitives.asymmetric import ec
+from cryptography.hazmat.primitives.kdf.hkdf import HKDFExpand
+from cryptography.hazmat.primitives.serialization import (Encoding,
+                                                          NoEncryption,
+                                                          PrivateFormat,
+                                                          PublicFormat,
+                                                          load_pem_public_key)
 
 aliases = {}
-connected = ""
+connected = None
+fernet = None
+private_key = None
 
-COMMANDS = ["/alias", "/clear", "/help", "/ip", "/quit", "/remote", "/time"]
+COMMANDS = ["/alias", "/clear", "/help", "/ip",
+            "/privkey", "/quit", "/remote", "/time"]
 LOCAL_ALT_PORT = 4096
 LOCAL_PORT = 2048
 REMOTE_ALT_PORT = 4096
@@ -19,10 +31,29 @@ REMOTE_PORT = 2048
 
 
 class Server(threading.Thread):
+    def accept_connection(self):
+        """Accepts connection and derives a shared key."""
+        global connected, fernet
+        try:
+            # exchange the ec public key
+            peer_public_key = load_pem_public_key(self.peer.recv(1024))
+            self.peer.sendall(private_key.public_key().public_bytes(
+                Encoding.PEM, PublicFormat.SubjectPublicKeyInfo))
+            shared_key = private_key.exchange(ec.ECDH(), peer_public_key)
+            derived_key = HKDFExpand(algorithm=hashes.SHA256(),
+                                     length=32, info=None).derive(shared_key)
+            fernet = Fernet(base64.urlsafe_b64encode(derived_key))
+        except Exception as e:
+            logging.error(str(e))
+
     def run(self):
         """Handles all of the incoming messages."""
-        global connected
+        global connected, fernet, private_key
         while True:
+            # generate a private key
+            logging.info("Generating private key")
+            private_key = ec.generate_private_key(ec.SECP521R1())
+
             # listen for ipv4 connections on all hosts
             self.incoming = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
             try:
@@ -36,29 +67,30 @@ class Server(threading.Thread):
 
             # connect to peer automatically
             self.incoming.listen(1)
-            peer, address = self.incoming.accept()
-            logging.info(f"New connection {address[0]}")
+            self.peer, self.address = self.incoming.accept()
+            logging.info(f"New connection {self.address[0]}")
             if not connected:
-                client.connect(address[0])
+                self.accept_connection()
+                client.initate_connection(self.address[0], True)
                 logging.info(f"Press enter to continue")
 
             # listen for messages forever
             while True:
                 try:
-                    message = f"{aliases.get(address[0], address[0])}: {fernet.decrypt(peer.recv(1024)).decode()}"
+                    message = f"{aliases.get(self.address[0], self.address[0])}: {fernet.decrypt(self.peer.recv(1024)).decode()}"
                     print(message)
                     logging.debug(message)
                 except Exception as e:
                     if not str(e):
-                        # almost restart the thread
+                        # empty string means peer disconnected
                         logging.info(
-                            f"{aliases.get(address[0], address[0])} disconnected")
+                            f"{aliases.get(self.address[0], self.address[0])} disconnected")
                         self.incoming.close()
-                        connected = ""
+                        connected = None
                         break
                     logging.error(str(e))
                     logging.info(
-                        f"Error from {aliases.get(address[0], address[0])}")
+                        f"Error from {aliases.get(self.address[0], self.address[0])}")
 
 
 class Client(threading.Thread):
@@ -87,6 +119,12 @@ class Client(threading.Thread):
         logging.info(request.urlopen(
             "http://ipv4.icanhazip.com").read().decode("utf8").strip())
 
+    def privkey(self, args):
+        """Shows the local private key"""
+        logging.info("Do not disclose this key")
+        logging.info(private_key.private_bytes(
+            Encoding.PEM, PrivateFormat.PKCS8, NoEncryption()).decode())
+
     def quit(self, args):
         """Quits the program"""
         client.outgoing.close()
@@ -104,9 +142,10 @@ class Client(threading.Thread):
         """Shows current local time"""
         logging.info(time.ctime())
 
-    def connect(self, target_host):
+    def initate_connection(self, target_host, no_exchange=False):
         """Tries the primary and alternate ports."""
-        global connected
+        global connected, fernet
+        # establish an initial connection
         try:
             self.outgoing.connect((target_host, REMOTE_PORT))
         except Exception as e:
@@ -116,26 +155,42 @@ class Client(threading.Thread):
                 self.outgoing.connect((target_host, REMOTE_ALT_PORT))
             except Exception as e:
                 logging.error(str(e))
-            else:
-                connected = target_host
-        else:
-            connected = target_host
+                return
+
+        # setup connection from server thread
+        connected = target_host
+        if no_exchange:
+            return
+
+        # exchange the ec public key
+        try:
+            self.outgoing.sendall(private_key.public_key().public_bytes(
+                Encoding.PEM, PublicFormat.SubjectPublicKeyInfo))
+            peer_public_key = load_pem_public_key(self.outgoing.recv(1024))
+            shared_key = private_key.exchange(ec.ECDH(), peer_public_key)
+            derived_key = HKDFExpand(algorithm=hashes.SHA256(),
+                                     length=32, info=None).derive(shared_key)
+            fernet = Fernet(base64.urlsafe_b64encode(derived_key))
+        except Exception as e:
+            logging.error(str(e))
+            connected = None
 
     def run(self):
         """Handles all of the outgoing messages."""
-        global connected
+        global connected, fernet
         # Connect to a specified peer
         logging.info(f"/help to list commands")
         while True:
-            try:
-                self.outgoing = socket.socket(
-                    socket.AF_INET, socket.SOCK_STREAM)
-                while not connected:
-                    target_host = input("HOST: ")
-                    if target_host:
-                        self.connect(target_host)
-                logging.info(f"Connected to {connected}")
+            self.outgoing = socket.socket(
+                socket.AF_INET, socket.SOCK_STREAM)
+            while not connected:
+                target_host = input("HOST: ")
+                if target_host:
+                    logging.info(f"Connecting to {target_host}")
+                    self.initate_connection(target_host)
+            logging.info(f"Connected to {connected}")
 
+            try:
                 # Either send message or run command
                 while True:
                     message = input("")
@@ -146,8 +201,7 @@ class Client(threading.Thread):
                             # hack to call function with name
                             try:
                                 getattr(
-                                    self, check_command[0][1:])(
-                                    check_command)
+                                    self, check_command[0][1:])(check_command)
                             except Exception as e:
                                 logging.error(str(e))
                         else:
@@ -155,7 +209,7 @@ class Client(threading.Thread):
                                 fernet.encrypt(message.encode()))
             except Exception as e:
                 logging.error(str(e))
-                connected = ""
+                connected = None
 
 
 if __name__ == "__main__":
@@ -168,16 +222,6 @@ if __name__ == "__main__":
             "%(asctime)s - %(levelname)s: %(message)s"))
     logging.basicConfig(level=logging.DEBUG,
                         format="%(levelname)s: %(message)s", handlers=handlers)
-
-    # get and validate the key
-    while True:
-        try:
-            key = input("KEY: ")
-            fernet = Fernet(key)
-        except Exception as e:
-            logging.error(str(e))
-        else:
-            break
 
     # start the combined server and client
     server = Server()
