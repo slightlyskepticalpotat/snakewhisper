@@ -52,7 +52,7 @@ class Server(threading.Thread):
         while True:
             # generate a private key
             logging.info("Generating private key")
-            private_key = ec.generate_private_key(ec.SECP521R1())
+            private_key = ec.generate_private_key(ec.SECP384R1())
 
             # listen for ipv4 connections on all hosts
             self.incoming = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -68,10 +68,10 @@ class Server(threading.Thread):
             # connect to peer automatically
             self.incoming.listen(1)
             self.peer, self.address = self.incoming.accept()
-            logging.info(f"New connection {self.address[0]}")
             if not connected:
                 self.accept_connection()
                 client.initate_connection(self.address[0], True)
+                logging.info(f"New connection {self.address[0]}")
                 logging.info(f"Press enter to continue")
 
             # listen for messages forever
