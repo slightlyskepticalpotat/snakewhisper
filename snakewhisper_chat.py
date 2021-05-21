@@ -35,6 +35,7 @@ class Server(threading.Thread):
         """Accepts connection and derives a shared key."""
         global connected, fernet
         try:
+            # exchange the ec public key
             peer_public_key = load_pem_public_key(self.peer.recv(1024))
             self.peer.sendall(private_key.public_key().public_bytes(
                 Encoding.PEM, PublicFormat.SubjectPublicKeyInfo))
@@ -71,6 +72,7 @@ class Server(threading.Thread):
             self.peer, self.address = self.incoming.accept()
             logging.info(f"New connection {self.address[0]}")
             self.accept_connection()
+            client.initate_connection(self.address[0], True)
             logging.info(f"Press enter to continue")
 
             # listen for messages forever
@@ -141,10 +143,10 @@ class Client(threading.Thread):
         """Shows current local time"""
         logging.info(time.ctime())
 
-    def initate_connection(self, target_host):
+    def initate_connection(self, target_host, skip_exchange=False):
         """Tries the primary and alternate ports."""
         global connected, fernet
-        # establish initial connection
+        # establish an initial connection
         try:
             self.outgoing.connect((target_host, REMOTE_PORT))
         except Exception as e:
@@ -155,6 +157,10 @@ class Client(threading.Thread):
             except Exception as e:
                 logging.error(str(e))
                 return
+
+        # setup connection from server thread
+        if skip_exchange:
+            return
 
         # exchange the ec public key
         try:
@@ -196,8 +202,7 @@ class Client(threading.Thread):
                             # hack to call function with name
                             try:
                                 getattr(
-                                    self, check_command[0][1:])(
-                                    check_command)
+                                    self, check_command[0][1:])(check_command)
                             except Exception as e:
                                 logging.error(str(e))
                         else:
