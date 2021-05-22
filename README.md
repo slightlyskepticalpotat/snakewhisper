@@ -33,8 +33,8 @@ HOST: 1.1.1.1 # type here
 INFO: Connecting to 1.1.1.1
 INFO: Connected to 1.1.1.1
 # now you type messages or commands
-alice to bob # your message
-1.1.1.1: bob to alice # their message
+02:01:18|Local User: alice to bob # your message
+02:01:23|1.1.1.1: bob to alice # their message
 /help # list all commands
 INFO: /alias /clear /help /ip /privkey /quit /remote /time
 /help quit # describe quit command
@@ -51,9 +51,7 @@ For ease of implementation, snakewhisper encrypts messages using the [Fernet](ht
 I am confident that the encryption scheme is secure in theory (barring any secret algorithm backdoors) because it is based on well-known cryptographic algorithms and primitives, but less confident that I've implemented everything correctly. Please review the code beforehand if you intend on sending sensitive data with this (at your own risk, of course).
 
 ## To-do List
-- Support for timestamps
 - Support for sending files
-- Multi-user conversations
 
 ## Contributing
 Pull requests are welcome, but please open an issue to discuss major changes.

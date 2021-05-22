@@ -77,7 +77,7 @@ class Server(threading.Thread):
             # listen for messages forever
             while True:
                 try:
-                    message = f"{aliases.get(self.address[0], self.address[0])}: {fernet.decrypt(self.peer.recv(1024)).decode()}"
+                    message = f"{time.strftime('%H:%M:%S')}|{aliases.get(self.address[0], self.address[0])}: {fernet.decrypt(self.peer.recv(1024)).decode()}"
                     print(message)
                     logging.debug(message)
                 except Exception as e:
@@ -140,7 +140,7 @@ class Client(threading.Thread):
 
     def time(self, args):
         """Shows current local time"""
-        logging.info(time.ctime())
+        logging.info(time.strftime("%d %b %Y %H:%M:%S"))
 
     def initate_connection(self, target_host, no_exchange=False):
         """Tries the primary and alternate ports."""
@@ -195,7 +195,10 @@ class Client(threading.Thread):
                 while True:
                     message = input("")
                     if message:
-                        logging.debug(message)
+                        print("\033[F", end = "")
+                        formatted_message = f"{time.strftime('%H:%M:%S')}|Local User: {message}"
+                        print(formatted_message)
+                        logging.debug(formatted_message)
                         check_command = message.split()
                         if check_command[0] in COMMANDS:
                             # hack to call function with name
