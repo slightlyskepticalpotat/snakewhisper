@@ -23,7 +23,7 @@ fernet = None
 private_key = None
 
 COMMANDS = ["/alias", "/clear", "/help", "/ip",
-            "/privkey", "/quit", "/remote", "/time"]
+            "/privkey", "/quit", "/remote", "/sendfile", "/time"]
 LOCAL_ALT_PORT = 4096
 LOCAL_PORT = 2048
 REMOTE_ALT_PORT = 4096
@@ -36,7 +36,7 @@ class Server(threading.Thread):
         global connected, fernet
         try:
             # exchange the ec public key
-            peer_public_key = load_pem_public_key(self.peer.recv(1024))
+            peer_public_key = load_pem_public_key(self.peer.recv(4096))
             self.peer.sendall(private_key.public_key().public_bytes(
                 Encoding.PEM, PublicFormat.SubjectPublicKeyInfo))
             shared_key = private_key.exchange(peer_public_key)
@@ -77,9 +77,26 @@ class Server(threading.Thread):
             # listen for messages forever
             while True:
                 try:
-                    message = f"{time.strftime('%H:%M:%S')}|{aliases.get(self.address[0], self.address[0])}: {fernet.decrypt(self.peer.recv(1024)).decode()}"
-                    print(message)
-                    logging.debug(message)
+                    raw_message = fernet.decrypt(self.peer.recv(4096)).decode()
+                    if raw_message != "FILE INCOMING":
+                        message = f"{time.strftime('%H:%M:%S')}|{aliases.get(self.address[0], self.address[0])}: {raw_message}"
+                        print(message)
+                        logging.debug(message)
+                    else:
+                        # receive the entire file
+                        self.peer.settimeout(2)
+                        filename = fernet.decrypt(self.peer.recv(4096)).decode()
+                        logging.info(f"Receiving file {filename}")
+                        buff = b""
+                        while True:
+                            try:
+                                buff += self.peer.recv(4096)
+                            except:
+                                break
+                        with open(filename, "wb") as file:
+                            file.write(fernet.decrypt(buff))
+                        logging.info(f"Received file {filename}")
+                        self.peer.settimeout(None)
                 except Exception as e:
                     if not str(e):
                         # empty string means peer disconnected
@@ -138,6 +155,18 @@ class Client(threading.Thread):
         else:
             logging.info("Currently not connected")
 
+    def sendfile(self, args):
+        """Sends file over the network"""
+        with open(args[1], "rb") as file:
+            filename = args[1]
+            logging.info(f"Sending file {filename}")
+            self.outgoing.sendall(fernet.encrypt(b"FILE INCOMING"))
+            self.outgoing.sendall(fernet.encrypt(filename.encode()))
+            time.sleep(1)
+            # sendall takes care of the batching
+            self.outgoing.sendall(fernet.encrypt(file.read()))
+        logging.info(f"Sent file {args[1]} successfully")
+
     def time(self, args):
         """Shows current local time"""
         logging.info(time.strftime("%d %b %Y %H:%M:%S"))
@@ -166,7 +195,7 @@ class Client(threading.Thread):
         try:
             self.outgoing.sendall(private_key.public_key().public_bytes(
                 Encoding.PEM, PublicFormat.SubjectPublicKeyInfo))
-            peer_public_key = load_pem_public_key(self.outgoing.recv(1024))
+            peer_public_key = load_pem_public_key(self.outgoing.recv(4096))
             shared_key = private_key.exchange(peer_public_key)
             derived_key = HKDFExpand(algorithm=hashes.SHA256(),
                                      length=32, info=None).derive(shared_key)
@@ -195,7 +224,7 @@ class Client(threading.Thread):
                 while True:
                     message = input("")
                     if message:
-                        print("\033[F", end = "")
+                        print("\033[F", end="")
                         formatted_message = f"{time.strftime('%H:%M:%S')}|Local User: {message}"
                         print(formatted_message)
                         logging.debug(formatted_message)
