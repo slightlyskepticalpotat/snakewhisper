@@ -22,8 +22,8 @@ connected = None
 fernet = None
 private_key = None
 
-COMMANDS = ["/alias", "/clear", "/help", "/ip",
-            "/privkey", "/quit", "/remote", "/sendfile", "/time"]
+COMMANDS = ["/alias", "/clear", "/help", "/ip", "/privkey",
+            "/pubkey", "/quit", "/remote", "/sendfile", "/time"]
 LOCAL_ALT_PORT = 4096
 LOCAL_PORT = 2048
 REMOTE_ALT_PORT = 4096
@@ -85,7 +85,8 @@ class Server(threading.Thread):
                     else:
                         # receive the entire file
                         self.peer.settimeout(2)
-                        filename = fernet.decrypt(self.peer.recv(4096)).decode()
+                        filename = fernet.decrypt(
+                            self.peer.recv(4096)).decode()
                         logging.info(f"Receiving file {filename}")
                         buff = b""
                         while True:
@@ -139,8 +140,13 @@ class Client(threading.Thread):
     def privkey(self, args):
         """Shows the local private key"""
         logging.info("Do not disclose this key")
-        logging.info(private_key.private_bytes(
-            Encoding.PEM, PrivateFormat.Raw, NoEncryption()).decode())
+        logging.info("\n" + private_key.private_bytes(
+            Encoding.PEM, PrivateFormat.PKCS8, NoEncryption()).decode().strip())
+
+    def pubkey(self, args):
+        """Shows the local public key"""
+        logging.info("\n" + private_key.public_key().public_bytes(
+            Encoding.PEM, PublicFormat.SubjectPublicKeyInfo).decode().strip())
 
     def quit(self, args):
         """Quits the program"""
