@@ -1,4 +1,5 @@
 import base64
+import datetime
 import logging
 import os
 import socket
@@ -22,13 +23,13 @@ connected = None
 fernet = None
 private_key = None
 
-COMMANDS = ["/alias", "/clear", "/help", "/ip", "/privkey",
-            "/pubkey", "/quit", "/remote", "/sendfile", "/time"]
+COMMANDS = ["/alias", "/clear", "/config", "/help", "/ip", "/privkey",
+            "/pubkey", "/quit", "/remote", "/sendfile", "/time", "/uptime"]
 LOCAL_ALT_PORT = 4096
 LOCAL_PORT = 2048
 REMOTE_ALT_PORT = 4096
 REMOTE_PORT = 2048
-
+START_TIME = datetime.datetime.now()
 
 class Server(threading.Thread):
     def accept_connection(self):
@@ -125,6 +126,13 @@ class Client(threading.Thread):
             os.system("cls")
         logging.info("Console cleared")
 
+    def config(self, args):
+        """Shows aliases and ports."""
+        for alias in aliases:
+            logging.info(f"Aliasing {alias} to {aliases[alias]}")
+        logging.info(f"Local ports: {LOCAL_PORT}, {LOCAL_ALT_PORT}")
+        logging.info(f"Remote ports: {REMOTE_PORT}, {REMOTE_ALT_PORT}")
+
     def help(self, args):
         """Shows all commands or info"""
         if len(args) > 1 and "/" + args[1] in COMMANDS:
@@ -176,6 +184,10 @@ class Client(threading.Thread):
     def time(self, args):
         """Shows current local time"""
         logging.info(time.strftime("%d %b %Y %H:%M:%S"))
+
+    def uptime(self, args):
+        """Shows time since program start."""
+        logging.info(str(datetime.datetime.now() - START_TIME))
 
     def initate_connection(self, target_host, no_exchange=False):
         """Tries the primary and alternate ports."""
