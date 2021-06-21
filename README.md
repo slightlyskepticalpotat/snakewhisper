@@ -54,6 +54,8 @@ For ease of implementation, snakewhisper encrypts messages and sent files using 
 I am confident that the encryption scheme is secure in theory (barring any secret algorithm backdoors) because it is based on well-known cryptographic algorithms and primitives, but less confident that I've implemented everything correctly. Please review the code beforehand if you intend on sending sensitive data with this (at your own risk, of course).
 
 ## To-do List
+- Full-fledged test suite
+- IPv6 support for 2021
 - Support for multi-user
 - Toggle timestamp on/off
 

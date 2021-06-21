@@ -262,21 +262,23 @@ class Client(threading.Thread):
                 connected = None
 
 
-if __name__ == "__main__":
-    # setup message output and logging
-    handlers = [logging.StreamHandler(sys.stdout)]
-    handlers[0].setLevel(logging.INFO)
-    if input("Log? (y/n): ").lower() == "y":
-        handlers.append(logging.FileHandler(filename='snakewhisper.log'))
-        handlers[1].setFormatter(logging.Formatter(
-            "%(asctime)s - %(levelname)s: %(message)s"))
-    logging.basicConfig(level=logging.DEBUG,
-                        format="%(levelname)s: %(message)s", handlers=handlers)
+# setup message output and logging
+handlers = [logging.StreamHandler(sys.stdout)]
+handlers[0].setLevel(logging.INFO)
+if input("Log? (y/n): ").lower() == "y":
+    handlers.append(logging.FileHandler(filename='snakewhisper.log'))
+    handlers[1].setFormatter(logging.Formatter(
+        "%(asctime)s - %(levelname)s: %(message)s"))
+logging.basicConfig(level=logging.DEBUG,
+                    format="%(levelname)s: %(message)s", handlers=handlers)
 
-    # start the combined server and client
-    server = Server()
-    server.daemon = True
-    server.start()
-    time.sleep(1)
-    client = Client()
-    client.start()
+# start the combined server and client
+server = Server()
+server.daemon = True
+server.start()
+time.sleep(1)
+client = Client()
+client.start()
+
+if __name__ == "__main__":
+    self.main()
